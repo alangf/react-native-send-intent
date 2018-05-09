@@ -11,6 +11,11 @@ import android.util.Log;
 import android.net.Uri;
 import android.telephony.TelephonyManager;
 import android.content.Context;
+import android.annotation.TargetApi;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.util.Base64;
+import android.support.v4.content.FileProvider;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -21,6 +26,8 @@ import java.lang.SecurityException;
 import java.text.SimpleDateFormat;
 import java.text.ParseException;
 import java.io.File;
+import java.io.FilenameFilter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 
@@ -97,7 +104,7 @@ public class RNSendIntentModule extends ReactContextBaseJavaModule {
         while(it.hasNextKey()) {
             String key = it.nextKey();
             ReadableType type = extras.getType(key);
-            
+
             switch (type) {
                 case Boolean:
                     intent.putExtra(key, extras.getBoolean(key));
@@ -501,7 +508,7 @@ public class RNSendIntentModule extends ReactContextBaseJavaModule {
 
         ArrayList<Object> readable = option.toArrayList();
         Intent intent = new Intent(Intent.ACTION_SEND_MULTIPLE);
- 
+
           String name = Intent.EXTRA_TEXT;
           ArrayList<Object> values = new ArrayList<>();
 
@@ -551,9 +558,9 @@ public class RNSendIntentModule extends ReactContextBaseJavaModule {
             sendIntent.setDataAndType(uri, mimeType);
         else
             sendIntent.setData(uri);
-        
+
         sendIntent.setPackage(packageName);
-        
+
         if (!parseExtras(extras, sendIntent)) {
             promise.resolve(false);
             return;
@@ -634,6 +641,63 @@ public class RNSendIntentModule extends ReactContextBaseJavaModule {
 
         if (settingsIntent.resolveActivity(this.reactContext.getPackageManager()) != null) {
             this.reactContext.startActivity(settingsIntent);
+        }
+    }
+
+    @ReactMethod
+    public void shareUrlToInstagram(String imageString, String captionString) {
+        if (imageString != null && imageString.length() > 0) {
+            byte[] imageData = Base64.decode(imageString, 0);
+
+            File file = null;
+            FileOutputStream os = null;
+
+            File parentDir = this.webView.getContext().getExternalFilesDir(null);
+            File[] oldImages = parentDir.listFiles(OLD_IMAGE_FILTER);
+            for (File oldImage : oldImages) {
+                oldImage.delete();
+            }
+
+            try {
+                file = File.createTempFile("instagram", ".png", parentDir);
+                os = new FileOutputStream(file, true);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            try {
+                os.write(imageData);
+                os.flush();
+                os.close();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("image/*");
+
+            if (Build.VERSION.SDK_INT < 26) {
+                // Handle the file uri with pre Oreo method
+                shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file));
+            } else {
+                // Handle the file URI using Android Oreo file provider
+                FileProvider FileProvider = new FileProvider();
+
+                Uri photoURI = FileProvider.getUriForFile(this.cordova.getActivity().getApplicationContext(),
+                        this.cordova.getActivity().getPackageName() + ".provider", file);
+
+                shareIntent.putExtra(Intent.EXTRA_STREAM, photoURI);
+                shareIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
+
+            shareIntent.putExtra(Intent.EXTRA_TEXT, captionString);
+            shareIntent.setPackage("com.instagram.android");
+
+            this.cordova.startActivityForResult((CordovaPlugin) this, Intent.createChooser(shareIntent, "Share to"),
+                    12345);
+        } else {
+            this.cbContext.error("Expected one non-empty string argument.");
         }
     }
 
