@@ -16,6 +16,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.util.Base64;
 import android.support.v4.content.FileProvider;
+import android.os.StrictMode;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -30,6 +31,9 @@ import java.io.FilenameFilter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.NativeModule;
@@ -42,6 +46,10 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.bridge.GuardedAsyncTask;
+import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
+import com.facebook.react.uimanager.UIBlock;
+import com.facebook.react.uimanager.UIManagerModule;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Call;
@@ -597,7 +605,6 @@ public class RNSendIntentModule extends ReactContextBaseJavaModule {
         }
     }
 
-
     @ReactMethod
     public void shareTextToLine(ReadableMap options) {
 
@@ -644,60 +651,74 @@ public class RNSendIntentModule extends ReactContextBaseJavaModule {
         }
     }
 
+    private static final FilenameFilter OLD_IMAGE_FILTER = new FilenameFilter() {
+        @Override
+        public boolean accept(File dir, String name) {
+            return name.startsWith("instagram");
+        }
+    };
+
     @ReactMethod
-    public void shareUrlToInstagram(String imageString, String captionString) {
+    public void newShareToInstagram(String imageString, String captionString) {
+
+        // TODO: new oreo method
+        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
+        StrictMode.setVmPolicy(builder.build());
+        // TODO: new oreo method
+        Log.w(TAG, "1-entramos");
         if (imageString != null && imageString.length() > 0) {
-            byte[] imageData = Base64.decode(imageString, 0);
+            final String pureBase64Encoded = imageString.substring(imageString.indexOf(",") + 1);
+            Log.w(TAG, "2-inside if imageString !null: " + pureBase64Encoded);
+            byte[] imageData = Base64.decode(pureBase64Encoded, Base64.DEFAULT);
 
             File file = null;
             FileOutputStream os = null;
 
-            File parentDir = this.webView.getContext().getExternalFilesDir(null);
+            File parentDir = this.reactContext.getExternalFilesDir(null);
             File[] oldImages = parentDir.listFiles(OLD_IMAGE_FILTER);
             for (File oldImage : oldImages) {
+                Log.w(TAG, "3-inside delete image" + oldImage);
                 oldImage.delete();
             }
 
             try {
-                file = File.createTempFile("instagram", ".png", parentDir);
+                file = File.createTempFile("instagram", ".jpg", parentDir);
+                Log.w(TAG, "4-1-instagram createTempFile: " + file);
                 os = new FileOutputStream(file, true);
             } catch (Exception e) {
+                Log.w(TAG, "5-exception");
                 e.printStackTrace();
             }
 
             try {
+                Log.w(TAG, "6-write imageData" + imageData);
                 os.write(imageData);
                 os.flush();
                 os.close();
             } catch (IOException e) {
                 // TODO Auto-generated catch block
+                Log.w(TAG, "7-write exception");
                 e.printStackTrace();
             }
 
-            Intent shareIntent = new Intent(Intent.ACTION_SEND);
-            shareIntent.setType("image/*");
+            try {
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("image/*");
 
-            if (Build.VERSION.SDK_INT < 26) {
-                // Handle the file uri with pre Oreo method
                 shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file));
-            } else {
-                // Handle the file URI using Android Oreo file provider
-                FileProvider FileProvider = new FileProvider();
 
-                Uri photoURI = FileProvider.getUriForFile(this.cordova.getActivity().getApplicationContext(),
-                        this.cordova.getActivity().getPackageName() + ".provider", file);
+                shareIntent.putExtra(Intent.EXTRA_TEXT, captionString);
+                shareIntent.setPackage("com.instagram.android");
 
-                shareIntent.putExtra(Intent.EXTRA_STREAM, photoURI);
-                shareIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                this.reactContext.startActivity(Intent.createChooser(shareIntent , "Compartir en Instagram..."));
+                Log.w(TAG, "8-shareIntent final: " + os);
+            } catch (Exception e) {
+                Log.w(TAG, "9-exception final");
+                e.printStackTrace();
             }
 
-            shareIntent.putExtra(Intent.EXTRA_TEXT, captionString);
-            shareIntent.setPackage("com.instagram.android");
-
-            this.cordova.startActivityForResult((CordovaPlugin) this, Intent.createChooser(shareIntent, "Share to"),
-                    12345);
         } else {
-            this.cbContext.error("Expected one non-empty string argument.");
+            // TODO: exception
         }
     }
 

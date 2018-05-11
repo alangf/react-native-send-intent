@@ -1,6 +1,7 @@
 package com.burnweb.rnsendintent;
 
 import android.app.Activity;
+import android.support.v4.content.FileProvider;
 
 import java.util.*;
 

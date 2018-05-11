@@ -68,6 +68,9 @@ var SendIntentAndroid = {
     shareImageToInstagram(type, mediaPath) {
         RNSendIntentAndroid.shareImageToInstagram(type, mediaPath);
     },
+    newShareToInstagram(mediaString, captionString) {
+        RNSendIntentAndroid.newShareToInstagram(mediaString, captionString);
+    },
     openSettings(settingsName) {
         RNSendIntentAndroid.openSettings(settingsName);
     },
