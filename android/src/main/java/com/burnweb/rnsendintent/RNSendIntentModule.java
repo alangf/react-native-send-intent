@@ -721,5 +721,68 @@ public class RNSendIntentModule extends ReactContextBaseJavaModule {
             // TODO: exception
         }
     }
+    
+    @ReactMethod
+    public void shareImage(String imageString, String captionString, title) {
+
+        // TODO: new oreo method
+        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
+        StrictMode.setVmPolicy(builder.build());
+        // TODO: new oreo method
+        Log.w(TAG, "1-entramos");
+        if (imageString != null && imageString.length() > 0) {
+            final String pureBase64Encoded = imageString.substring(imageString.indexOf(",") + 1);
+            Log.w(TAG, "2-inside if imageString !null: " + pureBase64Encoded);
+            byte[] imageData = Base64.decode(pureBase64Encoded, Base64.DEFAULT);
+
+            File file = null;
+            FileOutputStream os = null;
+
+            File parentDir = this.reactContext.getExternalFilesDir(null);
+            File[] oldImages = parentDir.listFiles(OLD_IMAGE_FILTER);
+            for (File oldImage : oldImages) {
+                Log.w(TAG, "3-inside delete image" + oldImage);
+                oldImage.delete();
+            }
+
+            try {
+                file = File.createTempFile("instagram", ".jpg", parentDir);
+                Log.w(TAG, "4-1-instagram createTempFile: " + file);
+                os = new FileOutputStream(file, true);
+            } catch (Exception e) {
+                Log.w(TAG, "5-exception");
+                e.printStackTrace();
+            }
+
+            try {
+                Log.w(TAG, "6-write imageData" + imageData);
+                os.write(imageData);
+                os.flush();
+                os.close();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                Log.w(TAG, "7-write exception");
+                e.printStackTrace();
+            }
+
+            try {
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("image/*");
+
+                shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file));
+
+                shareIntent.putExtra(Intent.EXTRA_TEXT, captionString);
+
+                this.reactContext.startActivity(Intent.createChooser(shareIntent , title));
+                Log.w(TAG, "8-shareIntent final: " + os);
+            } catch (Exception e) {
+                Log.w(TAG, "9-exception final");
+                e.printStackTrace();
+            }
+
+        } else {
+            // TODO: exception
+        }
+    }
 
 }
