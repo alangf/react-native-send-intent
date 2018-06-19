@@ -723,7 +723,7 @@ public class RNSendIntentModule extends ReactContextBaseJavaModule {
     }
     
     @ReactMethod
-    public void shareImage(String imageString, String captionString, title) {
+    public void shareImage(String imageString, String captionString, String title) {
 
         // TODO: new oreo method
         StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
